@@ -1,14 +1,18 @@
 'use strict';
 
 const express = require('express');
-const cors = require('cors');
-const superagent = require('superagent');
 require('dotenv').config();
-
 const server = express();
+const pg = require('pg');
+const cors = require('cors');
 server.use(cors());
+const superagent = require('superagent');
+
 
 const PORT = process.env.PORT || 3333 ;
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,
+  // ssl: { rejectUnauthorized: false }
+});
 
 server.get('/',(req,res)=>{
   res.send('The Server is working')
@@ -42,21 +46,39 @@ function Park(data) {
 
 
 
+
 function locationHandler(req,res){
-  //GET https://eu1.locationiq.com/v1/search.php?key=YOUR_ACCESS_TOKEN&q=SEARCH_STRING&format=json
   let cityName = req.query.city;
   let key = process.env.LOCATION_KEY;
   let locationURL =`https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-  superagent.get(locationURL)
-    .then(data=>{
-      // console.log(data.body[0]);
-      let locationData = data.body[0];
-      let newLocation = new Location (cityName,locationData);
-      res.send(newLocation);
+  let SQL = `SELECT * FROM locations WHERE city ='${cityName}'`
+  client.query(SQL)
+    .then(result=>{
+      console.log(result.rows , result.rows)
+      if(result.rows.length===0){
+
+        superagent.get(locationURL)
+          .then(data=>{
+            console.log(data.body);
+            let locationData = data.body[0];
+            let newLocation = new Location (cityName,locationData);
+            res.send(newLocation);
+            let SQL1 = `INSERT INTO locations VALUES ($1,$2,$3,$4) RETURNING *;`
+            let safeValue = [newLocation.search_query,newLocation.formatted_query,newLocation.latitude,newLocation.longitude]
+            client.query(SQL1,safeValue)
+
+          })
+          .catch(error=>{
+            res.send(error);
+          })
+        console.log('true')
+
+      }else{
+        res.send(result.rows[0]);
+        console.log('false')
+      }
     })
-    .catch(error=>{
-      res.send(error);
-    })
+
 }
 
 function weatherHandler(req,res) {
@@ -100,17 +122,14 @@ function parkHandler(req,res){
       res.send(error);
     })
 }
-server.get('*',(req,res)=>{
-  let errorObj = {
-    status: 500,
-    responseText: 'Sorry, something went wrong'
-  }
-
-  res.status(500).send(errorObj);
 
 
-})
 
-server.listen(PORT,()=>{
-  console.log(`Listening on PORT ${PORT}`)
-});
+client.connect()
+  .then(()=>{
+
+    server.listen(PORT,()=>{
+      console.log(`Listening on PORT ${PORT}`);
+    })
+
+  })
