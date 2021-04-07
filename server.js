@@ -13,9 +13,7 @@ const weather = require('./modules/weather.js')
 
 
 const PORT = process.env.PORT || 3333 ;
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,
-  // ssl: { rejectUnauthorized: false }
-});
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,ssl: { rejectUnauthorized: false }});
 
 server.get('/',(req,res)=>{
   res.send('The Server is working')
