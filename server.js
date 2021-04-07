@@ -49,7 +49,7 @@ function locationHandler(req,res){
   let cityName = req.query.city;
   let key = process.env.LOCATION_KEY;
   let locationURL =`https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-  let SQL = `SELECT * FROM locations WHERE city ='${cityName}';`
+  let SQL = `SELECT * FROM locations WHERE search_query='${cityName}';`
   client.query(SQL)
     .then(result=>{
       console.log(result.rows , result.rows)
